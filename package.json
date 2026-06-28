@@ -5,7 +5,9 @@
   "type": "module",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "test": "node --test --test-reporter=spec tests/unit/*.test.js",
+    "test:unit": "node --test --test-reporter=spec tests/unit/*.test.js"
   },
   "engines": {
     "node": ">=20"

@@ -39,3 +39,27 @@ Act as a pragmatic DevSecOps systems engineer building a supply-chain analysis M
 - Keep the README honest about current implementation status.
 - Document data contracts when module boundaries change.
 - Avoid marketing claims that are not backed by working code.
+
+## Testing Rules
+
+- Tests live in `tests/unit/` and mirror the source tree (e.g.
+  `tests/unit/dependencyScout.test.js` covers `src/agents/dependencyScout.js`).
+- Use Node's built-in `node:test` runner — do **not** add Jest, Mocha, or
+  Vitest. The dependency surface stays minimal on purpose.
+- Each implementation step adds a matching test file before it is considered
+  done. `node --check` + `npm test` must both pass.
+- Test groups per module:
+  1. **Shape** — pure, no network, always run.
+  2. **Live smoke** — exercises the real upstream (e.g. npm registry); may
+     succeed-vacuous when offline, but must not throw.
+  3. **Resilience** — monkey-patches `globalThis.fetch` to simulate
+     timeouts and 5xx responses; asserts the pipeline never throws.
+
+## Commit Policy
+
+- All commits follow **[Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)**
+  as defined in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+- AI-assisted commits must add a `Co-Authored-By:` trailer crediting the
+  agent. The human remains the primary `Author`.
+- AI agents must **not** run `git add` / `git commit` on the human's behalf.
+  They surface the message; the human executes it.

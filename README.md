@@ -24,7 +24,7 @@ The repository is built incrementally via an **atomic, prompt-driven workflow** 
 
 ### Implemented
 
-- **Project scaffold** — Node.js 20 ES module layout, Express + CORS, static file serving, Dockerfile for Cloud Run-style container deployment.
+- **Project scaffold** — Node.js 20 ES module layout, Express + CORS, static file serving, Dockerfile for any container host.
 - **DependencyScout** (`src/agents/dependencyScout.js`) — BFS npm dependency graph resolver against the public npm registry, bounded by `MAX_DEPTH=3` and `MAX_NODES=200`, with a 5 s `AbortController` timeout, `latest`-dist-tag fallback, in-memory request cache, and per-package failure isolation. Backed by 9 micro-tests.
 - **Engineering guardrails** — `AGENTS.md`, `SKILL.md`, `CONTRIBUTING.md` lock in deterministic-core / AI-bounded-reasoning separation, the atomic-build workflow, and the Conventional Commits v1.0.0 policy for human and AI-assisted commits alike.
 
@@ -60,16 +60,16 @@ supply-chain-observatory/
 ├── CONTRIBUTING.md                # Conventional Commits v1.0.0 policy
 ├── SKILL.md                       # atomic prompt-driven build workflow
 ├── README.md
-├── Dockerfile                     # node:20-slim, Cloud Run-ready
+├── Dockerfile                     # node:20-slim container for any container host
 ├── package.json                   # type: "module"; scripts: start, test
-├── .env.example                   # GEMINI_API_KEY, NVD_API_KEY, PORT
+├── .env.example                   # documented environment variables
 ├── .gitignore                     # node_modules, .env, *.log, temp/
 ├── public/
-│   └── graph-view.html            # vis-network CDN, vanilla JS, no build step
+│   └── index.html                 # vis-network graph + paste/upload UI
 ├── src/
-│   ├── server.js                  # Express app + static mount
+│   ├── server.js                  # Express app + static mount + bootstrap
 │   ├── agents/
-│   │   ├── dependencyScout.js     # ✅ implemented — npm graph builder
+│   │   ├── dependencyScout.js     # npm graph builder
 │   │   ├── threatAnalyst.js       # NVD lookup + Gemini exploitability
 │   │   └── businessAdvisor.js     # Gemini narrative (high-risk only)
 │   ├── clients/
@@ -79,12 +79,19 @@ supply-chain-observatory/
 │   │   ├── graph.js               # deterministic blast-radius traversal
 │   │   └── riskScore.js           # deterministic explainable scoring
 │   └── routes/
-│       └── analyze.js             # POST /api/analyze (currently 501 stub)
+│       └── analyze.js             # POST /api/analyze (full pipeline)
 ├── tests/
-│   └── unit/
-│       └── dependencyScout.test.js  # node:test — shape + smoke + resilience
+│   └── unit/                      # node:test — 143 tests across 8 files
+│       ├── _geminiLoaderHook.mjs
+│       ├── analyze.test.js
+│       ├── businessAdvisor.test.js
+│       ├── dependencyScout.test.js
+│       ├── graph.test.js
+│       ├── nvdClient.test.js
+│       ├── riskScore.test.js
+│       └── threatAnalyst.test.js
 └── test-fixtures/
-    └── sample-package.json        # stable demo input
+    └── sample-package.json        # stable demo manifest
 ```
 
 `temp/` is gitignored — local scratch space for ad-hoc notes and intermediate plans.
@@ -155,7 +162,7 @@ These shapes are stable; any change to them is a `BREAKING CHANGE:` commit that 
 - **External I/O** — native `fetch` with `AbortController` timeouts (no `node-fetch`).
 - **AI SDK** — `@google/genai` for Gemini reasoning calls (read from `GEMINI_API_KEY`).
 - **Testing** — Node's built-in `node:test` runner. Zero test-framework dependency.
-- **Deployment** — single-stage `node:20-slim` Docker image, ready for Google Cloud Run.
+- **Deployment** — single-stage `node:20-slim` Docker image, ready for any container host (Cloud Run, Fly.io, Render, plain Docker, etc.).
 
 No bundler, no transpiler, no frontend framework. The static UI is one vanilla HTML file using vis-network via CDN.
 
@@ -192,7 +199,7 @@ Supply Chain Observatory listening on port 8080
 ### 4. Open the UI
 
 ```text
-http://localhost:8080/graph-view.html
+http://localhost:8080/
 ```
 
 ### 5. Smoke-test the current API stub
@@ -259,7 +266,7 @@ Run locally:
 docker run --rm -p 8080:8080 --env-file .env supply-chain-observatory
 ```
 
-The image is a single-stage `node:20-slim` container that runs `node src/server.js` and binds to `$PORT` — drop-in compatible with Google Cloud Run.
+The image is a single-stage `node:20-slim` container that runs `node src/server.js` and binds to `$PORT` — drop-in compatible with any container host that respects `$PORT`.
 
 ---
 

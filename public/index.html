@@ -1,0 +1,1200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Supply Chain Observatory</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f7f8fa;
+        color: #1f2937;
+        --bg: #ffffff;
+        --bg-muted: #f7f8fa;
+        --border: #e5e7eb;
+        --text: #1f2937;
+        --text-muted: #6b7280;
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --danger: #dc2626;
+        --danger-bg: #fee2e2;
+        --warning: #92400e;
+        --warning-bg: #fef3c7;
+        --success: #065f46;
+        --success-bg: #d1fae5;
+        --low: #16a34a;
+        --medium: #eab308;
+        --high: #dc2626;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        padding: 14px 20px;
+        background: #111827;
+        color: #f9fafb;
+        border-bottom: 1px solid #1f2937;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+
+      header .subtitle {
+        margin: 2px 0 0;
+        color: #9ca3af;
+        font-size: 12px;
+      }
+
+      header .status-pill {
+        font-size: 11px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #1f2937;
+        color: #d1d5db;
+        border: 1px solid #374151;
+        white-space: nowrap;
+      }
+
+      header .status-pill.ok    { background: #064e3b; color: #d1fae5; border-color: #065f46; }
+      header .status-pill.warn  { background: #78350f; color: #fef3c7; border-color: #92400e; }
+      header .status-pill.err   { background: #7f1d1d; color: #fee2e2; border-color: #991b1b; }
+
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        /* The main flex container must be allowed to shrink so its children
+           can size to viewport height. Without this, body>main stretches
+           to whatever its content wants and the results-view grid never
+           gets a concrete height for the graph to size against. */
+        min-height: 0;
+      }
+
+      /* ------------------------------------------------------------
+         Input view: paste / upload manifest
+         ------------------------------------------------------------ */
+      #input-view {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1.4fr 1fr;
+        gap: 20px;
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+        width: 100%;
+        min-height: 0;  /* allow shrinking so the layout never overflows viewport */
+      }
+
+      .panel {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .panel h2 {
+        margin: 0 0 4px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .panel p.hint {
+        margin: 0 0 16px;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      #manifest-input {
+        flex: 1;
+        min-height: 320px;
+        width: 100%;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12.5px;
+        line-height: 1.5;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fafafa;
+        color: var(--text);
+        resize: vertical;
+      }
+
+      #manifest-input:focus {
+        outline: 2px solid var(--primary);
+        outline-offset: -2px;
+        border-color: transparent;
+        background: #ffffff;
+      }
+
+      #manifest-input.drag-over {
+        border-color: var(--primary);
+        background: #eff6ff;
+      }
+
+      .input-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .btn {
+        padding: 9px 16px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.15s, border-color 0.15s;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: #ffffff;
+      }
+      .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+      .btn-primary:disabled { background: #9ca3af; cursor: not-allowed; }
+
+      .btn-secondary {
+        background: #ffffff;
+        color: var(--text);
+        border-color: var(--border);
+      }
+      .btn-secondary:hover:not(:disabled) { background: #f3f4f6; }
+
+      .btn-danger {
+        background: #ffffff;
+        color: var(--danger);
+        border-color: #fecaca;
+      }
+      .btn-danger:hover:not(:disabled) { background: var(--danger-bg); }
+
+      .file-input-wrap {
+        position: relative;
+        display: inline-block;
+      }
+      .file-input-wrap input[type=file] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      .helper-block {
+        background: #f9fafb;
+        border: 1px dashed #d1d5db;
+        border-radius: 8px;
+        padding: 14px;
+        font-size: 12.5px;
+        color: #4b5563;
+        line-height: 1.55;
+      }
+      .helper-block h3 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        color: var(--text);
+      }
+      .helper-block ul { margin: 6px 0 0; padding-left: 18px; }
+      .helper-block li { margin: 3px 0; }
+      .helper-block code {
+        background: #e5e7eb;
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 11.5px;
+      }
+
+      .input-error {
+        margin-top: 10px;
+        padding: 10px 12px;
+        background: var(--danger-bg);
+        color: #7f1d1d;
+        border: 1px solid #fecaca;
+        border-radius: 6px;
+        font-size: 12.5px;
+        display: none;
+      }
+      .input-error.visible { display: block; }
+
+      /* ------------------------------------------------------------
+         Results view: graph + side panel
+         ------------------------------------------------------------ */
+      /* Hidden by default — taking it out of the layout entirely. */
+      #results-view { display: none; }
+      /* When shown, fill the viewport: flex item with explicit min-height
+         so vis-network's canvas can resolve its size. Using height (not
+         min-height) prevents the infinite-expand bug where the graph keeps
+         growing past the visible area. */
+      #results-view.visible {
+        display: flex;
+        flex: 1 1 auto;
+        width: 100%;
+        min-height: 0;
+        /* Cap the height to the remaining viewport so the side panel
+           scrolls independently and the graph never grows past the fold. */
+        height: calc(100vh - 80px);  /* 80px ≈ header height */
+        max-height: calc(100vh - 80px);
+      }
+
+      #graph-container {
+        position: relative;
+        background: var(--bg);
+        border-right: 1px solid var(--border);
+        /* CRITICAL: flex children must have min-height: 0 to allow shrinking
+           below their content size, otherwise the flex parent grows past the
+           viewport. */
+        min-height: 0;
+        min-width: 0;
+        flex: 1 1 auto;
+        overflow: hidden;
+      }
+
+      /* The vis-network canvas needs an explicit pixel height. We give it
+         a guaranteed concrete size by absolute-positioning it to fill the
+         parent. The parent already has `overflow: hidden` so it can't
+         expand past its bounds. */
+      #graph {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .results-toolbar {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        z-index: 5;
+        pointer-events: none;
+      }
+      .results-toolbar > * { pointer-events: auto; }
+
+      .results-summary {
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: var(--text);
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        flex-wrap: wrap;
+      }
+      .results-summary b { color: var(--text); }
+      .results-summary .sep { color: var(--text-muted); }
+
+      #side-panel {
+        background: var(--bg);
+        overflow-y: auto;
+        padding: 16px;
+        font-size: 14px;
+        line-height: 1.45;
+        /* Flex sibling of #graph-container. Same rules: min-height: 0 to
+           allow shrinking, flex-basis auto to honor content, and a max
+           width so on small screens we wrap below the graph. */
+        flex: 0 0 380px;
+        min-height: 0;
+        min-width: 0;
+        max-height: 100%;
+      }
+      #side-panel.empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        text-align: center;
+        padding: 32px 16px;
+      }
+
+      #side-panel h2 {
+        margin: 0 0 6px;
+        font-size: 16px;
+        word-break: break-all;
+      }
+      #side-panel .meta {
+        color: var(--text-muted);
+        font-size: 12px;
+        margin-bottom: 12px;
+      }
+
+      .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-right: 6px;
+        margin-bottom: 6px;
+      }
+      .pill-direct   { background: #dbeafe; color: #1e40af; }
+      .pill-transit  { background: #f3f4f6; color: #374151; }
+      .pill-low      { background: var(--success-bg); color: var(--success); }
+      .pill-medium   { background: var(--warning-bg); color: var(--warning); }
+      .pill-high     { background: var(--danger-bg); color: #991b1b; }
+      .pill-critical { background: #fecaca; color: #7f1d1d; }
+
+      .finding {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        background: #fafafa;
+      }
+      .finding h3 {
+        margin: 0 0 4px;
+        font-size: 13px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .finding .row {
+        font-size: 12px;
+        color: #374151;
+        margin: 4px 0;
+      }
+      .finding .row b { color: #111827; }
+      .finding .narrative {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed #d1d5db;
+        font-size: 12px;
+        color: var(--text);
+      }
+      .finding .narrative .label {
+        font-weight: 600;
+        color: #374151;
+        display: block;
+        margin-bottom: 2px;
+      }
+
+      /* Loading overlay covers only the graph area. */
+      #loading {
+        position: absolute;
+        inset: 0;
+        background: rgba(247, 248, 250, 0.94);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 14px;
+        color: #4b5563;
+        font-size: 14px;
+        z-index: 20;
+        transition: opacity 0.2s ease-out;
+        padding: 20px;
+        text-align: center;
+      }
+      #loading.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #e5e7eb;
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .progress-detail {
+        font-size: 12px;
+        color: var(--text-muted);
+        max-width: 360px;
+        line-height: 1.5;
+      }
+
+      #error-banner {
+        margin: 12px 20px 0;
+        padding: 10px 14px;
+        background: var(--danger-bg);
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        font-size: 13px;
+        display: none;
+        white-space: pre-wrap;
+      }
+      #error-banner.visible { display: block; }
+
+      #legend {
+        position: absolute;
+        bottom: 12px;
+        left: 12px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 11px;
+        color: #374151;
+        line-height: 1.6;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        z-index: 5;
+      }
+      #legend .dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+
+@media (max-width: 900px) {
+        #input-view {
+          grid-template-columns: 1fr;
+        }
+        /* On small screens stack graph above side panel and give each a
+           finite viewport-bound height so the whole thing fits on screen. */
+        #results-view.visible {
+          flex-direction: column;
+          height: auto;
+          max-height: none;
+        }
+        #graph-container {
+          flex: 1 1 auto;
+          min-height: 50vh;
+          height: 50vh;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+        }
+        #side-panel {
+          flex: 1 1 auto;
+          flex-basis: auto;
+          max-height: none;
+          border-top: none;
+          min-height: 40vh;
+        }
+        header { flex-direction: column; align-items: flex-start; }
+        header .status-pill { align-self: flex-start; }
+      }
+
+      @media (max-width: 600px) {
+        #results-view.visible {
+          height: auto;
+          max-height: none;
+        }
+        #graph-container { min-height: 55vh; height: 55vh; }
+        #side-panel { min-height: 50vh; }
+        .results-summary { font-size: 11px; padding: 6px 8px; gap: 8px; }
+        .results-toolbar { top: 8px; left: 8px; right: 8px; flex-direction: column; align-items: stretch; }
+        #back-btn { width: 100%; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Supply Chain Observatory</h1>
+        <p class="subtitle">Dependency-graph risk analysis. Paste or upload a package.json, then click Analyze.</p>
+      </div>
+      <div id="server-status" class="status-pill" aria-live="polite">checking server…</div>
+    </header>
+
+    <div id="error-banner" role="alert"></div>
+
+    <main>
+      <!-- ============================================================
+           INPUT VIEW: paste or upload a manifest, then analyze
+           ============================================================ -->
+      <section id="input-view">
+        <div class="panel">
+          <h2>Manifest input</h2>
+          <p class="hint">Paste the contents of a <code>package.json</code> file, drop a file in the box, or load the demo manifest.</p>
+          <textarea
+            id="manifest-input"
+            spellcheck="false"
+            autocapitalize="off"
+            autocomplete="off"
+            placeholder='{
+  "name": "your-app",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}'
+          ></textarea>
+          <div class="input-error" id="input-error" role="alert"></div>
+          <div class="input-row">
+            <button id="analyze-btn" class="btn btn-primary" type="button">Analyze manifest</button>
+            <span class="file-input-wrap">
+              <button class="btn btn-secondary" type="button">Upload package.json…</button>
+              <input id="file-input" type="file" accept=".json,application/json,.txt" aria-label="Upload package.json file">
+            </span>
+            <button id="load-demo-btn" class="btn btn-secondary" type="button">Load demo manifest</button>
+            <button id="clear-btn" class="btn btn-danger" type="button">Clear</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>What this does</h2>
+          <p class="hint">The pipeline resolves your dependencies, fetches CVEs from the National Vulnerability Database, scores each finding, and asks Gemini for a stakeholder-facing impact summary on high-risk items.</p>
+          <div class="helper-block">
+            <h3>Tips for a clean run</h3>
+            <ul>
+              <li>The dependency tree is capped at <b>200 nodes / depth 3</b> for the demo.</li>
+              <li>For real npm packages the request takes <b>30–90 seconds</b> end-to-end because of NVD lookups + Gemini calls. The UI stays responsive.</li>
+              <li>If you paste <b>empty</b> or invalid JSON, the server falls back to a built-in demo manifest so the demo never breaks.</li>
+              <li>Direct dependencies are drawn with a <b>black border</b>; transitive deps are smaller and unbordered.</li>
+            </ul>
+          </div>
+          <div class="helper-block" style="margin-top:14px;">
+            <h3>Risk score breakdown</h3>
+            <ul>
+              <li><b>CVSS</b> (40% weight) — base severity from NVD.</li>
+              <li><b>In-context exploitability</b> (35%) — Gemini's read of whether the bug is reachable in this package's typical use.</li>
+              <li><b>Blast radius</b> (25%) — how many packages transitively depend on this one.</li>
+              <li><b>Critical path boost</b> (+15) — bonus if a directly-installed package depends on it.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+           RESULTS VIEW: graph + side panel
+           ============================================================ -->
+      <section id="results-view">
+        <div id="graph-container">
+          <div id="loading">
+            <div class="spinner" aria-hidden="true"></div>
+            <div><b>Analyzing dependency graph…</b></div>
+            <div class="progress-detail" id="progress-detail">
+              Resolving transitive deps, querying NVD, scoring risk with Gemini.
+            </div>
+          </div>
+          <div class="results-toolbar">
+            <div class="results-summary" id="results-summary"></div>
+            <button id="back-btn" class="btn btn-secondary" type="button">← Edit manifest</button>
+          </div>
+          <div id="graph" aria-label="Dependency graph visualization"></div>
+          <div id="legend">
+            <div><span class="dot" style="background:var(--low)"></span>No findings / low risk (&lt;30)</div>
+            <div><span class="dot" style="background:var(--medium)"></span>Medium (30-60)</div>
+            <div><span class="dot" style="background:var(--high)"></span>High (60-100)</div>
+            <div style="margin-top:4px; color:var(--text-muted);">Bordered nodes = direct dependencies</div>
+          </div>
+        </div>
+        <aside id="side-panel" class="empty">
+          <div>Select a node to view its findings, risk score breakdown, and recommended action.</div>
+        </aside>
+      </section>
+    </main>
+
+    <!-- vis-network for the force-directed graph. CDN, no build step. -->
+    <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+    <script>
+      "use strict";
+
+      // ============================================================
+      // Tiny DOM helpers (no framework needed for this size of UI)
+      // ============================================================
+      function $(id) { return document.getElementById(id); }
+      function escapeHtml(s) {
+        if (s == null) return "";
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+      function show(el) { el.classList.add("visible"); }
+      function hide(el) { el.classList.remove("visible"); }
+
+      // ============================================================
+      // Risk-tier color mapping (kept in one place for visual+legend parity)
+      // ============================================================
+      function riskColor(score) {
+        if (score == null) return "var(--low)";
+        if (score < 30) return "var(--low)";
+        if (score < 60) return "var(--medium)";
+        return "var(--high)";
+      }
+      function riskHex(score) {
+        if (score == null) return "#16a34a";
+        if (score < 30) return "#16a34a";
+        if (score < 60) return "#eab308";
+        return "#dc2626";
+      }
+      function severityClass(sev) {
+        if (!sev) return "";
+        const s = String(sev).toUpperCase();
+        if (s === "LOW") return "pill-low";
+        if (s === "MEDIUM") return "pill-medium";
+        if (s === "HIGH") return "pill-high";
+        if (s === "CRITICAL") return "pill-critical";
+        return "";
+      }
+
+      // ============================================================
+      // State
+      // ============================================================
+      const state = {
+        lastReport: null,
+        network: null,
+        graphResizeObserver: null,
+        pendingFit: null,
+      };
+
+      // ============================================================
+      // Findings index: pkgId -> Finding[] (sorted by score desc)
+      // ============================================================
+      function indexFindingsByPkg(findings) {
+        const byPkg = new Map();
+        for (const f of findings || []) {
+          if (!f || !f.pkgId) continue;
+          if (!byPkg.has(f.pkgId)) byPkg.set(f.pkgId, []);
+          byPkg.get(f.pkgId).push(f);
+        }
+        for (const arr of byPkg.values()) {
+          arr.sort((a, b) => (b.riskScore?.score ?? 0) - (a.riskScore?.score ?? 0));
+        }
+        return byPkg;
+      }
+
+      // ============================================================
+      // Side-panel rendering
+      // ============================================================
+      function renderSidePanel(node, findingsByPkg) {
+        const panel = $("side-panel");
+        const findings = findingsByPkg.get(node.id) || [];
+
+        const rs = findings[0]?.riskScore?.score ?? null;
+        const scoreLine = rs != null
+          ? `<span class="pill" style="background:${riskHex(rs)}22; color:${riskHex(rs)}">Risk ${rs}/100</span>`
+          : `<span class="pill pill-low">No findings</span>`;
+
+        const rolePill = node.isDirect
+          ? `<span class="pill pill-direct">Direct</span>`
+          : `<span class="pill pill-transit">Transitive · depth ${node.depth}</span>`;
+
+        let findingsHtml = "";
+        if (findings.length === 0) {
+          findingsHtml = `<div class="finding"><div class="row">No CVEs found in NVD for this package.</div></div>`;
+        } else {
+          for (const f of findings) {
+            const sevClass = severityClass(f.cvssSeverity);
+            const sevPill = sevClass
+              ? `<span class="pill ${sevClass}">${escapeHtml(f.cvssSeverity || "?")}</span>`
+              : "";
+            const narrative = f.narrative
+              ? `<div class="narrative">
+                   <span class="label">Business impact</span>
+                   ${escapeHtml(f.narrative.businessImpactSummary)}
+                   <span class="label" style="margin-top:8px;">Recommended action</span>
+                   ${escapeHtml(f.narrative.recommendedAction)}
+                 </div>`
+              : (rs != null && rs < 50
+                  ? `<div class="narrative"><span class="label">Note</span>Below narrative threshold (score &lt; 50); no Gemini narrative generated.</div>`
+                  : "");
+
+            const cvss = (f.cvssScore == null) ? "n/a" : String(f.cvssScore);
+            const exploit = (f.exploitabilityInContext == null) ? "n/a" : String(f.exploitabilityInContext);
+
+            findingsHtml += `
+              <div class="finding">
+                <h3>${escapeHtml(f.cveId)}</h3>
+                <div class="row">
+                  ${sevPill}
+                  CVSS: <b>${escapeHtml(cvss)}</b>
+                  · Exploitability: <b>${escapeHtml(exploit)}</b>
+                </div>
+                <div class="row">
+                  Blast radius: <b>${f.blastRadius?.dependentCount ?? 0}</b> dependents
+                  ${f.blastRadius?.criticalPathFlag ? '· <b style="color:#991b1b;">on critical path</b>' : ""}
+                </div>
+                <div class="row" style="color:var(--text-muted); font-style:italic;">
+                  ${escapeHtml(f.geminiRationale || "")}
+                </div>
+                ${narrative}
+              </div>`;
+          }
+        }
+
+        panel.classList.remove("empty");
+        panel.innerHTML = `
+          <h2>${escapeHtml(node.name || node.id)}</h2>
+          <div class="meta">${escapeHtml(node.id)} · depth ${node.depth}</div>
+          <div style="margin-bottom:12px;">
+            ${rolePill}
+            ${scoreLine}
+          </div>
+          ${findingsHtml}
+        `;
+      }
+
+      // ============================================================
+      // Build vis-network datasets from the report
+      // ============================================================
+      function buildVisData(report) {
+        const findingsByPkg = indexFindingsByPkg(report.findings);
+
+        const nodes = [];
+        const nodesById = new Map();
+        for (const n of report.graph.nodes || []) {
+          if (!n || typeof n.id !== "string") continue;
+          const findings = findingsByPkg.get(n.id) || [];
+          const topScore = findings[0]?.riskScore?.score ?? null;
+          const color = riskHex(topScore);
+          const node = {
+            id: n.id,
+            label: n.name || n.id,
+            color: {
+              background: color,
+              border: n.isDirect ? "#111827" : "#9ca3af",
+              highlight: { background: color, border: "#111827" },
+              hover: { background: color, border: "#111827" },
+            },
+            borderWidth: n.isDirect ? 2.5 : 1,
+            shape: "dot",
+            size: n.isDirect ? 22 : 13,
+            font: { size: 12, color: "#111827", face: "system-ui" },
+            title: `${n.name} (${n.id})`,
+          };
+          nodes.push(node);
+          nodesById.set(n.id, node);
+        }
+
+        const edges = (report.graph.edges || [])
+          .filter((e) => e && e.from && e.to && nodesById.has(e.from) && nodesById.has(e.to))
+          .map((e) => ({
+            from: e.from,
+            to: e.to,
+            arrows: { to: { enabled: true, scaleFactor: 0.4 } },
+            color: { color: "#cbd5e1", highlight: "#475569" },
+            smooth: { enabled: true, type: "dynamic" },
+          }));
+
+        return { nodes, edges, findingsByPkg, nodesById };
+      }
+
+      // ============================================================
+      // Render the graph and wire up node interactions
+      // ============================================================
+      function renderGraph(report) {
+        const { nodes, edges, findingsByPkg, nodesById } = buildVisData(report);
+        const container = $("graph");
+        const graphContainer = $("graph-container");
+
+        // Tear down any previous network instance and observer.
+        if (state.network) {
+          try { state.network.destroy(); } catch (_) {}
+          state.network = null;
+        }
+        if (state.graphResizeObserver) {
+          try { state.graphResizeObserver.disconnect(); } catch (_) {}
+          state.graphResizeObserver = null;
+        }
+        if (state.pendingFit) {
+          clearTimeout(state.pendingFit);
+          state.pendingFit = null;
+        }
+        container.innerHTML = "";
+
+        // Defensive guard: if the container has zero size at this instant
+        // (e.g. results-view hasn't been laid out yet), defer the network
+        // creation until it has a real pixel size. This is the root cause
+        // of the "graph expands to infinity" bug: vis-network can't size
+        // its canvas if the parent reports 0×0.
+        const rect = graphContainer.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+          console.warn("[ui] graph container has zero size, deferring render");
+          // Wait for layout to settle then retry.
+          state.pendingFit = setTimeout(() => {
+            if (state.lastReport) renderGraph(state.lastReport);
+          }, 100);
+          return;
+        }
+
+        const data = {
+          nodes: new vis.DataSet(nodes),
+          edges: new vis.DataSet(edges),
+        };
+        const options = {
+          layout: {
+            improvedLayout: true,
+            hierarchical: false,
+          },
+          physics: {
+            enabled: true,
+            solver: "forceAtlas2Based",
+            forceAtlas2Based: {
+              gravitationalConstant: -55,
+              centralGravity: 0.012,
+              springLength: 130,
+              springConstant: 0.08,
+              damping: 0.45,
+              avoidOverlap: 0.5,
+            },
+            stabilization: {
+              enabled: true,
+              iterations: 250,
+              fit: true,
+              updateInterval: 25,
+            },
+            // Stop simulating forever — once stabilized, freeze so the
+            // graph doesn't keep drifting / expanding past its bounds.
+            minVelocity: 0.75,
+          },
+          interaction: {
+            hover: true,
+            tooltipDelay: 100,
+            navigationButtons: false,
+            keyboard: false,
+          },
+          nodes: { shape: "dot" },
+          edges: { smooth: { enabled: true, type: "dynamic", roundness: 0.4 } },
+        };
+
+        state.network = new vis.Network(container, data, options);
+
+        // After stabilization, fit again to make sure nodes fill the view
+        // properly. vis-network sometimes computes the wrong viewport
+        // during initial render.
+        state.network.once("stabilizationIterationsDone", () => {
+          try {
+            state.network.setOptions({ physics: { enabled: false } });
+            state.network.fit({ animation: { duration: 300, easingFunction: "easeInOutQuad" } });
+          } catch (_) { /* network may have been torn down */ }
+        });
+
+        // Watch the container for size changes (window resize, view switch,
+        // orientation change) and redraw. Without this, vis-network's canvas
+        // stays at its initial size and the graph looks "stuck" or clipped
+        // when the viewport changes.
+        if (typeof ResizeObserver !== "undefined") {
+          state.graphResizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+              const { width, height } = entry.contentRect;
+              if (width > 0 && height > 0 && state.network) {
+                try { state.network.redraw(); state.network.fit(); } catch (_) {}
+              }
+            }
+          });
+          state.graphResizeObserver.observe(graphContainer);
+        } else {
+          // Fallback for very old browsers.
+          window.addEventListener("resize", () => {
+            if (state.network) { try { state.network.redraw(); state.network.fit(); } catch (_) {} }
+          });
+        }
+
+        state.network.on("selectNode", (params) => {
+          if (params.nodes && params.nodes.length > 0) {
+            const node = nodesById.get(params.nodes[0]);
+            if (node) renderSidePanel(node, findingsByPkg);
+          }
+        });
+        state.network.on("deselectNode", () => {
+          const panel = $("side-panel");
+          panel.classList.add("empty");
+          panel.innerHTML = "<div>Select a node to view its findings, risk score breakdown, and recommended action.</div>";
+        });
+      }
+
+      // ============================================================
+      // Summary banner above the graph
+      // ============================================================
+      function renderResultsSummary(report) {
+        const nodes = report.graph?.nodes ?? [];
+        const edges = report.graph?.edges ?? [];
+        const findings = report.findings ?? [];
+        const direct = nodes.filter((n) => n.isDirect).length;
+        const transitive = nodes.length - direct;
+        const maxScore = findings.reduce((m, f) => Math.max(m, f.riskScore?.score ?? 0), 0);
+        const maxHex = riskHex(maxScore);
+        const truncated = report.truncated ? '<span class="sep">·</span> <b style="color:var(--warning)">truncated at 200 nodes</b>' : '';
+        const source = report.inputSource || "";
+        const manifestName = report.manifest?.name || "(unnamed)";
+
+        $("results-summary").innerHTML = `
+          <span><b>${escapeHtml(manifestName)}</b></span>
+          <span class="sep">·</span>
+          <span><b>${nodes.length}</b> packages (${direct} direct, ${transitive} transitive)</span>
+          <span class="sep">·</span>
+          <span><b>${edges.length}</b> edges</span>
+          <span class="sep">·</span>
+          <span><b>${findings.length}</b> findings</span>
+          <span class="sep">·</span>
+          <span>Top risk: <b style="color:${maxHex}">${maxScore}/100</b></span>
+          ${truncated}
+        `;
+      }
+
+      // ============================================================
+      // View switching
+      // ============================================================
+      function showInputView() {
+        $("input-view").style.display = "";
+        $("results-view").classList.remove("visible");
+        $("error-banner").classList.remove("visible");
+        $("error-banner").textContent = "";
+        // Destroy the graph when leaving the results view so it doesn't
+        // keep consuming CPU simulating invisible nodes.
+        if (state.network) {
+          try { state.network.destroy(); } catch (_) {}
+          state.network = null;
+        }
+        if (state.graphResizeObserver) {
+          try { state.graphResizeObserver.disconnect(); } catch (_) {}
+          state.graphResizeObserver = null;
+        }
+      }
+      function showResultsView() {
+        $("input-view").style.display = "none";
+        $("results-view").classList.add("visible");
+      }
+
+      // ============================================================
+      // Loading overlay controls (progressive detail text)
+      // ============================================================
+      const LOADING_MESSAGES = [
+        { ms: 0,    text: "Resolving direct dependencies…" },
+        { ms: 8000, text: "Querying NVD for CVEs (this is the slow part; rate-limited to ~48 req/30s with a key)…" },
+        { ms: 25000, text: "Scoring exploitability with Gemini…" },
+        { ms: 60000, text: "Generating stakeholder narratives for high-risk findings…" },
+      ];
+      function setLoadingProgress() {
+        const el = $("progress-detail");
+        const t0 = Date.now();
+        const tick = () => {
+          if ($("loading").classList.contains("hidden")) return;
+          const elapsed = Date.now() - t0;
+          let text = LOADING_MESSAGES[0].text;
+          for (const m of LOADING_MESSAGES) {
+            if (elapsed >= m.ms) text = m.text;
+          }
+          el.textContent = text;
+          setTimeout(tick, 1000);
+        };
+        tick();
+      }
+      function showLoading() {
+        $("loading").classList.remove("hidden");
+        setLoadingProgress();
+      }
+      function hideLoading() {
+        $("loading").classList.add("hidden");
+      }
+
+      // ============================================================
+      // Manifest handling: parse + send to /api/analyze
+      // ============================================================
+      function showInputError(msg) {
+        const el = $("input-error");
+        el.textContent = msg;
+        el.classList.add("visible");
+      }
+      function clearInputError() {
+        const el = $("input-error");
+        el.textContent = "";
+        el.classList.remove("visible");
+      }
+
+      function buildRequestBody(manifest) {
+        // If a manifest is provided, send it in the { manifest: ... } wrapper
+        // (matches case 1 of the /api/analyze route's resolver). Otherwise
+        // send an empty object so the server uses the demo fixture.
+        return manifest ? { manifest } : {};
+      }
+
+      async function runAnalysis(manifest) {
+        clearInputError();
+        $("error-banner").classList.remove("visible");
+        $("error-banner").textContent = "";
+
+        showResultsView();
+        showLoading();
+        $("analyze-btn").disabled = true;
+
+        try {
+          const res = await fetch("/api/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(buildRequestBody(manifest)),
+          });
+
+          if (!res.ok) {
+            let detail = `HTTP ${res.status}`;
+            try {
+              const body = await res.json();
+              if (body && body.message) detail = body.message;
+              else if (body && body.error) detail = `${body.error}: ${body.message || ""}`;
+            } catch (_) { /* keep status code */ }
+            throw new Error(detail);
+          }
+
+          const report = await res.json();
+          if (!report || !report.graph || !Array.isArray(report.graph.nodes)) {
+            throw new Error("Server returned an invalid report (missing graph.nodes).");
+          }
+
+          state.lastReport = report;
+          renderResultsSummary(report);
+          renderGraph(report);
+        } catch (err) {
+          const msg = (err && err.message) ? err.message : String(err);
+          $("error-banner").textContent = `Analysis failed: ${msg}\n\nReturning to the manifest input so you can try again.`;
+          $("error-banner").classList.add("visible");
+          // Pop back to input so the user can correct + retry.
+          showInputView();
+        } finally {
+          hideLoading();
+          $("analyze-btn").disabled = false;
+        }
+      }
+
+      function parseManifest(text) {
+        if (!text || !text.trim()) {
+          return { manifest: null, usedFixture: true };
+        }
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch (err) {
+          throw new Error(`Invalid JSON: ${err.message}`);
+        }
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          throw new Error("Manifest must be a JSON object (the contents of package.json).");
+        }
+        // Either { manifest: {...} } wrapper or a bare manifest with dependencies/devDependencies.
+        const candidate = (parsed.manifest && typeof parsed.manifest === "object") ? parsed.manifest : parsed;
+        if (!candidate.dependencies && !candidate.devDependencies) {
+          throw new Error("Manifest has no dependencies or devDependencies. Nothing to analyze.");
+        }
+        return { manifest: candidate, usedFixture: false };
+      }
+
+      async function onAnalyzeClick() {
+        const text = $("manifest-input").value;
+        let parsed;
+        try {
+          parsed = parseManifest(text);
+        } catch (err) {
+          showInputError(err.message);
+          return;
+        }
+        runAnalysis(parsed.manifest);
+      }
+
+      async function loadDemoManifest() {
+        try {
+          const res = await fetch("/api/health");
+          if (!res.ok) throw new Error(`Server returned ${res.status}`);
+          // Use the demo by analyzing an empty body — server falls back to fixture.
+          $("manifest-input").value = "";
+          await runAnalysis(null);
+        } catch (err) {
+          showInputError(`Could not load demo: ${err.message}`);
+        }
+      }
+
+      function onFileSelected(file) {
+        if (!file) return;
+        if (file.size > 1_000_000) {
+          showInputError(`File is too large (${file.size} bytes). 1 MB max.`);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          $("manifest-input").value = String(reader.result || "");
+          clearInputError();
+        };
+        reader.onerror = () => showInputError(`Could not read file: ${reader.error?.message || "unknown error"}`);
+        reader.readAsText(file);
+      }
+
+      // ============================================================
+      // Server health check (header pill)
+      // ============================================================
+      async function checkServerHealth() {
+        const pill = $("server-status");
+        try {
+          const res = await fetch("/api/health");
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          if (data.status === "ok") {
+            pill.textContent = "server: ok";
+            pill.classList.add("ok");
+          } else {
+            pill.textContent = "server: degraded";
+            pill.classList.add("warn");
+          }
+        } catch (err) {
+          pill.textContent = "server: offline";
+          pill.classList.add("err");
+          pill.title = String(err?.message || err);
+        }
+      }
+
+      // ============================================================
+      // Wire up event handlers
+      // ============================================================
+      function init() {
+        $("analyze-btn").addEventListener("click", onAnalyzeClick);
+        $("load-demo-btn").addEventListener("click", loadDemoManifest);
+        $("clear-btn").addEventListener("click", () => {
+          $("manifest-input").value = "";
+          clearInputError();
+          $("manifest-input").focus();
+        });
+        $("back-btn").addEventListener("click", showInputView);
+        $("file-input").addEventListener("change", (e) => onFileSelected(e.target.files?.[0]));
+
+        // Drag-and-drop a file onto the textarea.
+        const ta = $("manifest-input");
+        ["dragenter", "dragover"].forEach((ev) =>
+          ta.addEventListener(ev, (e) => { e.preventDefault(); ta.classList.add("drag-over"); })
+        );
+        ["dragleave", "drop"].forEach((ev) =>
+          ta.addEventListener(ev, (e) => { e.preventDefault(); ta.classList.remove("drag-over"); })
+        );
+        ta.addEventListener("drop", (e) => {
+          const file = e.dataTransfer?.files?.[0];
+          if (file) onFileSelected(file);
+        });
+
+        // Ctrl/Cmd+Enter inside the textarea = analyze.
+        ta.addEventListener("keydown", (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            e.preventDefault();
+            onAnalyzeClick();
+          }
+        });
+
+        checkServerHealth();
+      }
+
+      // Boot once the DOM is ready (script is at end of body, so it always is).
+      init();
+    </script>
+  </body>
+</html>

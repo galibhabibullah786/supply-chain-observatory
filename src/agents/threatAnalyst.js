@@ -69,6 +69,7 @@ async function buildFindingForCve(node, cve) {
   return {
     pkgId: node.id,                       // matches graph node.id, e.g. "lodash@4.17.20"
     packageName: node.name,
+    version: node.version ?? null,        // attached so businessAdvisor prompts can reference it
     depth: node.depth,
     isDirect: node.isDirect,
     cveId: cve.cveId,

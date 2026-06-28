@@ -4,6 +4,16 @@ An MVP for mapping JavaScript dependency graphs, assessing vulnerability exploit
 
 The project is intentionally shaped as an engineering-focused DevSecOps tool: deterministic graph and scoring logic live in pure JavaScript modules, while Gemini is reserved for bounded reasoning tasks such as exploitability context and stakeholder narrative generation.
 
+<p align="center">
+  <a href="https://supply-chain-observatory.vercel.app/">
+    <img src="https://img.shields.io/badge/🔴_Live_Demo-supply--chain--observatory.vercel.app-blue?style=for-the-badge" alt="Live Demo" />
+  </a>
+</p>
+
+> **🌐 Live Demo:** [https://supply-chain-observatory.vercel.app/](https://supply-chain-observatory.vercel.app/)
+>
+> Open the link above to explore the deployed application — paste or upload a `package.json` and visualize dependency risk in real time.
+
 ---
 
 ## Why This Exists

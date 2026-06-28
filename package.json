@@ -1,0 +1,19 @@
+{
+  "name": "supply-chain-observatory",
+  "version": "0.1.0",
+  "description": "MVP for dependency graph analysis, vulnerability context assessment, and explainable supply-chain risk reporting.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@google/genai": "^1.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}

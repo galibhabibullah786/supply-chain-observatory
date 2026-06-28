@@ -1,0 +1,8 @@
+{
+  "name": "supply-chain-observatory-sample",
+  "version": "0.1.0",
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5"
+  }
+}

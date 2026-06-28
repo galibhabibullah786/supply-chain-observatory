@@ -67,8 +67,12 @@ function buildReverseAdjacency(graph) {
 
 /**
  * Public entry point. Returns BlastRadius.
+ *
+ * Optional `prebuiltReverse` and `prebuiltDirectIds` let callers that already
+ * computed the reverse adjacency / direct-id set (e.g. the /analyze route
+ * iterating over many findings) avoid rebuilding them on every call.
  */
-export function computeBlastRadius(graph, pkgId) {
+export function computeBlastRadius(graph, pkgId, prebuiltReverse = null, prebuiltDirectIds = null) {
   const empty = { dependents: [], dependentCount: 0, criticalPathFlag: false };
 
   if (!graph || typeof graph !== "object") return empty;
@@ -78,8 +82,8 @@ export function computeBlastRadius(graph, pkgId) {
   const nodeExists = graph.nodes && graph.nodes.some((n) => n && n.id === pkgId);
   if (!nodeExists) return empty;
 
-  const reverse = buildReverseAdjacency(graph);
-  const directIds = new Set(
+  const reverse = prebuiltReverse || buildReverseAdjacency(graph);
+  const directIds = prebuiltDirectIds || new Set(
     (graph.nodes || [])
       .filter((n) => n && n.isDirect)
       .map((n) => n.id)

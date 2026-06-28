@@ -419,3 +419,44 @@ describe("threatAnalyst.analyzeThreats — integration", { timeout: 30_000, conc
     assert.ok(maxInFlight >= 2, "expected at least some parallelism to be exercised");
   });
 });
+
+// ---------------------------------------------------------------------------
+// mapWithConcurrency is exported for reuse (e.g. analyze.js uses it for
+// narrative batched calls). Verify the public API surface stays correct.
+// ---------------------------------------------------------------------------
+describe("threatAnalyst.mapWithConcurrency — public re-export", () => {
+  test("is exported as an async function", async () => {
+    const { mapWithConcurrency } = await import("../../src/agents/threatAnalyst.js");
+    assert.equal(typeof mapWithConcurrency, "function");
+  });
+
+  test("preserves input order in the result array", async () => {
+    const { mapWithConcurrency } = await import("../../src/agents/threatAnalyst.js");
+    const items = [10, 20, 30, 40, 50];
+    const out = await mapWithConcurrency(items, 2, async (n) => n * 2);
+    assert.deepEqual(out, [20, 40, 60, 80, 100]);
+  });
+
+  test("respects the concurrency limit", async () => {
+    const { mapWithConcurrency } = await import("../../src/agents/threatAnalyst.js");
+    let inFlight = 0;
+    let peak = 0;
+    const items = Array.from({ length: 20 }, (_, i) => i);
+    const out = await mapWithConcurrency(items, 3, async (n) => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight--;
+      return n;
+    });
+    assert.equal(out.length, items.length);
+    assert.ok(peak <= 3, `expected peak <= 3, got ${peak}`);
+    assert.ok(peak >= 2, "expected at least some parallelism");
+  });
+
+  test("returns [] for empty input without throwing", async () => {
+    const { mapWithConcurrency } = await import("../../src/agents/threatAnalyst.js");
+    const out = await mapWithConcurrency([], 3, async () => "x");
+    assert.deepEqual(out, []);
+  });
+});

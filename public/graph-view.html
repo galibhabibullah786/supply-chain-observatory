@@ -12,32 +12,498 @@
         color: #1f2937;
       }
 
+      * { box-sizing: border-box; }
+
       body {
         margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        padding: 16px 20px;
+        background: #111827;
+        color: #f9fafb;
+        border-bottom: 1px solid #1f2937;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      header .subtitle {
+        margin: 4px 0 0;
+        color: #9ca3af;
+        font-size: 13px;
       }
 
       main {
-        max-width: 960px;
-        margin: 0 auto;
-        padding: 32px 20px;
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        min-height: 0;
       }
 
-      h1 {
-        margin: 0 0 12px;
-        font-size: 32px;
-        line-height: 1.15;
+      #graph-container {
+        position: relative;
+        background: #ffffff;
+        border-right: 1px solid #e5e7eb;
+        min-height: 600px;
       }
 
-      p {
-        margin: 0;
+      #graph {
+        width: 100%;
+        height: 100%;
+        min-height: 600px;
+      }
+
+      #side-panel {
+        background: #ffffff;
+        overflow-y: auto;
+        padding: 16px;
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      #side-panel.empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6b7280;
+        text-align: center;
+        padding: 32px 16px;
+      }
+
+      #side-panel h2 {
+        margin: 0 0 6px;
+        font-size: 16px;
+        word-break: break-all;
+      }
+
+      #side-panel .meta {
+        color: #6b7280;
+        font-size: 12px;
+        margin-bottom: 12px;
+      }
+
+      #side-panel .pill {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-right: 6px;
+        margin-bottom: 6px;
+      }
+
+      .pill-direct   { background: #dbeafe; color: #1e40af; }
+      .pill-transit  { background: #f3f4f6; color: #374151; }
+      .pill-low      { background: #d1fae5; color: #065f46; }
+      .pill-medium   { background: #fef3c7; color: #92400e; }
+      .pill-high     { background: #fee2e2; color: #991b1b; }
+      .pill-critical { background: #fecaca; color: #7f1d1d; }
+
+      .finding {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        background: #fafafa;
+      }
+
+      .finding h3 {
+        margin: 0 0 4px;
+        font-size: 13px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .finding .row {
+        font-size: 12px;
+        color: #374151;
+        margin: 4px 0;
+      }
+
+      .finding .row b { color: #111827; }
+
+      .finding .narrative {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px dashed #d1d5db;
+        font-size: 12px;
+        color: #1f2937;
+      }
+
+      .finding .narrative .label {
+        font-weight: 600;
+        color: #374151;
+        display: block;
+        margin-bottom: 2px;
+      }
+
+      /* Loading overlay covers the whole graph area, never the side panel. */
+      #loading {
+        position: absolute;
+        inset: 0;
+        background: rgba(247, 248, 250, 0.92);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 12px;
         color: #4b5563;
+        font-size: 14px;
+        z-index: 10;
+        transition: opacity 0.2s ease-out;
+      }
+
+      #loading.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .spinner {
+        width: 36px;
+        height: 36px;
+        border: 3px solid #e5e7eb;
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      #error-banner {
+        margin: 12px 20px 0;
+        padding: 10px 14px;
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        font-size: 13px;
+        display: none;
+      }
+
+      #error-banner.visible { display: block; }
+
+      #legend {
+        position: absolute;
+        bottom: 12px;
+        left: 12px;
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 11px;
+        color: #374151;
+        line-height: 1.5;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        z-index: 5;
+      }
+
+      #legend .dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+        #graph-container {
+          min-height: 480px;
+        }
+        #side-panel {
+          border-top: 1px solid #e5e7eb;
+          max-height: 50vh;
+        }
       }
     </style>
   </head>
   <body>
-    <main>
+    <header>
       <h1>Supply Chain Observatory</h1>
-      <p>Static graph visualization placeholder. The live dependency graph UI will be implemented after the analysis pipeline is wired.</p>
+      <p class="subtitle">Dependency-graph risk analysis for the demo manifest. Click a node to inspect findings.</p>
+    </header>
+
+    <div id="error-banner" role="alert"></div>
+
+    <main>
+      <div id="graph-container">
+        <div id="loading">
+          <div class="spinner" aria-hidden="true"></div>
+          <div>Analyzing dependency graph...</div>
+          <div style="font-size: 11px; color: #9ca3af;">Resolving transitive deps, querying NVD, scoring risk with Gemini.</div>
+        </div>
+        <div id="graph" aria-label="Dependency graph visualization"></div>
+        <div id="legend">
+          <div><span class="dot" style="background:#16a34a"></span>No findings / low risk (&lt;30)</div>
+          <div><span class="dot" style="background:#eab308"></span>Medium (30-60)</div>
+          <div><span class="dot" style="background:#dc2626"></span>High (60-100)</div>
+          <div style="margin-top:4px; color:#6b7280;">Bordered nodes = direct dependencies</div>
+        </div>
+      </div>
+      <aside id="side-panel" class="empty">
+        <div>Select a node to view its findings, risk score breakdown, and recommended action.</div>
+      </aside>
     </main>
+
+    <!-- vis-network for the force-directed graph. CDN, no build step. -->
+    <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+    <script>
+      "use strict";
+
+      // -------------------------------------------------------------
+      // Risk-tier color mapping. Kept in one place so the visual and
+      // the legend stay in sync.
+      // -------------------------------------------------------------
+      function riskColor(score) {
+        if (score == null) return "#16a34a";   // green (no findings)
+        if (score < 30)  return "#16a34a";     // green
+        if (score < 60)  return "#eab308";     // yellow
+        return "#dc2626";                      // red
+      }
+
+      function severityClass(sev) {
+        if (!sev) return "";
+        const s = String(sev).toUpperCase();
+        if (s === "LOW")      return "pill-low";
+        if (s === "MEDIUM")   return "pill-medium";
+        if (s === "HIGH")     return "pill-high";
+        if (s === "CRITICAL") return "pill-critical";
+        return "";
+      }
+
+      function escapeHtml(s) {
+        if (s == null) return "";
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      // -------------------------------------------------------------
+      // Build a lookup from pkgId -> finding for the side-panel view.
+      // A package may have multiple CVEs (multiple findings), so we
+      // group by pkgId.
+      // -------------------------------------------------------------
+      function indexFindingsByPkg(findings) {
+        const byPkg = new Map();
+        for (const f of findings || []) {
+          if (!byPkg.has(f.pkgId)) byPkg.set(f.pkgId, []);
+          byPkg.get(f.pkgId).push(f);
+        }
+        // Sort each package's findings by descending risk score for stable rendering.
+        for (const arr of byPkg.values()) {
+          arr.sort((a, b) => (b.riskScore?.score ?? 0) - (a.riskScore?.score ?? 0));
+        }
+        return byPkg;
+      }
+
+      // -------------------------------------------------------------
+      // Render findings into the side panel for a given node id.
+      // -------------------------------------------------------------
+      function renderSidePanel(node, findingsByPkg) {
+        const panel = document.getElementById("side-panel");
+        const findings = findingsByPkg.get(node.id) || [];
+
+        const rs = findings[0]?.riskScore?.score ?? null;
+        const scoreLine = rs != null
+          ? `<span class="pill" style="background:${riskColor(rs)}22; color:${riskColor(rs)}">Risk ${rs}/100</span>`
+          : `<span class="pill pill-low">No findings</span>`;
+
+        const rolePill = node.isDirect
+          ? `<span class="pill pill-direct">Direct</span>`
+          : `<span class="pill pill-transit">Transitive · depth ${node.depth}</span>`;
+
+        let findingsHtml = "";
+        if (findings.length === 0) {
+          findingsHtml = `<div class="finding"><div class="row">No CVEs found in NVD for this package.</div></div>`;
+        } else {
+          for (const f of findings) {
+            const sevClass = severityClass(f.cvssSeverity);
+            const sevPill = sevClass
+              ? `<span class="pill ${sevClass}">${escapeHtml(f.cvssSeverity || "?")}</span>`
+              : "";
+            const narrative = f.narrative
+              ? `<div class="narrative">
+                   <span class="label">Business impact</span>
+                   ${escapeHtml(f.narrative.businessImpactSummary)}
+                   <span class="label" style="margin-top:8px;">Recommended action</span>
+                   ${escapeHtml(f.narrative.recommendedAction)}
+                 </div>`
+              : (rs != null && rs < 50
+                  ? `<div class="narrative"><span class="label">Note</span>Below narrative threshold (score &lt; 50); no Gemini narrative generated.</div>`
+                  : "");
+
+            findingsHtml += `
+              <div class="finding">
+                <h3>${escapeHtml(f.cveId)}</h3>
+                <div class="row">
+                  ${sevPill}
+                  CVSS: <b>${f.cvssScore == null ? "n/a" : escapeHtml(String(f.cvssScore))}</b>
+                  · Exploitability: <b>${escapeHtml(String(f.exploitabilityInContext ?? "n/a"))}</b>
+                </div>
+                <div class="row">
+                  Blast radius: <b>${f.blastRadius?.dependentCount ?? 0}</b> dependents
+                  ${f.blastRadius?.criticalPathFlag ? '· <b style="color:#991b1b;">on critical path</b>' : ""}
+                </div>
+                <div class="row" style="color:#6b7280; font-style:italic;">
+                  ${escapeHtml(f.geminiRationale || "")}
+                </div>
+                ${narrative}
+              </div>`;
+          }
+        }
+
+        panel.classList.remove("empty");
+        panel.innerHTML = `
+          <h2>${escapeHtml(node.name)}</h2>
+          <div class="meta">
+            ${escapeHtml(node.id)} · depth ${node.depth}
+          </div>
+          <div style="margin-bottom:12px;">
+            ${rolePill}
+            ${scoreLine}
+          </div>
+          ${findingsHtml}
+        `;
+      }
+
+      // -------------------------------------------------------------
+      // Build vis-network datasets from the report.
+      // -------------------------------------------------------------
+      function buildVisData(report) {
+        const findingsByPkg = indexFindingsByPkg(report.findings);
+
+        const nodes = [];
+        const nodesById = new Map();
+        for (const n of report.graph.nodes) {
+          const findings = findingsByPkg.get(n.id) || [];
+          const topScore = findings[0]?.riskScore?.score ?? null;
+          const color = riskColor(topScore);
+          const node = {
+            id: n.id,
+            label: n.name,
+            color: {
+              background: color,
+              border: n.isDirect ? "#111827" : "#9ca3af",
+              highlight: { background: color, border: "#111827" },
+            },
+            borderWidth: n.isDirect ? 2 : 1,
+            shape: "dot",
+            size: n.isDirect ? 18 : 12,
+            font: { size: 12, color: "#111827" },
+            title: n.id,
+          };
+          nodes.push(node);
+          nodesById.set(n.id, node);
+        }
+
+        const edges = (report.graph.edges || []).map((e) => ({
+          from: e.from,
+          to: e.to,
+          arrows: { to: { enabled: true, scaleFactor: 0.4 } },
+          color: { color: "#cbd5e1", highlight: "#475569" },
+          smooth: { enabled: true, type: "dynamic" },
+        }));
+
+        return { nodes, edges, findingsByPkg, nodesById };
+      }
+
+      // -------------------------------------------------------------
+      // Main fetch + render. Empty body so the server falls back to
+      // the demo fixture (guaranteed-working demo path).
+      // -------------------------------------------------------------
+      async function loadAnalysis() {
+        const loading = document.getElementById("loading");
+        const errorBanner = document.getElementById("error-banner");
+        errorBanner.classList.remove("visible");
+        errorBanner.textContent = "";
+
+        try {
+          const res = await fetch("/api/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+
+          if (!res.ok) {
+            let detail = `HTTP ${res.status}`;
+            try {
+              const body = await res.json();
+              if (body && body.message) detail = body.message;
+              else if (body && body.error) detail = body.error;
+            } catch (_) { /* keep status code */ }
+            throw new Error(detail);
+          }
+
+          const report = await res.json();
+
+          const { nodes, edges, findingsByPkg, nodesById } = buildVisData(report);
+
+          const container = document.getElementById("graph");
+          const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
+          const options = {
+            layout: {
+              improvedLayout: true,
+              hierarchical: false,
+            },
+            physics: {
+              enabled: true,
+              solver: "forceAtlas2Based",
+              forceAtlas2Based: { gravitationalConstant: -45, springLength: 120, springConstant: 0.08 },
+              stabilization: { enabled: true, iterations: 200, fit: true },
+            },
+            interaction: { hover: true, tooltipDelay: 100 },
+            nodes: { shape: "dot" },
+            edges: { smooth: { enabled: true, type: "dynamic" } },
+          };
+
+          // Tear down any previous network instance before drawing again.
+          let network;
+          if (loadAnalysis._prev) {
+            try { loadAnalysis._prev.destroy(); } catch (_) { /* ignore */ }
+          }
+          network = new vis.Network(container, data, options);
+          loadAnalysis._prev = network;
+
+          network.on("selectNode", (params) => {
+            if (params.nodes && params.nodes.length > 0) {
+              const node = nodesById.get(params.nodes[0]);
+              if (node) renderSidePanel(node, findingsByPkg);
+            }
+          });
+          network.on("deselectNode", () => {
+            const panel = document.getElementById("side-panel");
+            panel.classList.add("empty");
+            panel.innerHTML = "<div>Select a node to view its findings, risk score breakdown, and recommended action.</div>";
+          });
+        } catch (err) {
+          errorBanner.textContent = `Analysis failed: ${err && err.message ? err.message : err}. Check the server logs.`;
+          errorBanner.classList.add("visible");
+          const panel = document.getElementById("side-panel");
+          panel.classList.add("empty");
+          panel.innerHTML = "<div>No analysis data available.</div>";
+        } finally {
+          loading.classList.add("hidden");
+        }
+      }
+
+      // Kick off on page load.
+      loadAnalysis();
+    </script>
   </body>
 </html>

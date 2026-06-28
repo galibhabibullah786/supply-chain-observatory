@@ -13,7 +13,7 @@
 
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { computeBlastRadius } from "../../src/core/graph.js";
+import { computeBlastRadius, __internal } from "../../src/core/graph.js";
 
 // Helper to build a small graph quickly in tests.
 function mkGraph(spec) {
@@ -335,5 +335,60 @@ describe("graph.computeBlastRadius — resilience", () => {
     const r = computeBlastRadius(g, "x@1.0.0");
     assert.equal(typeof r.dependentCount, "number");
     assert.ok(Array.isArray(r.dependents));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Group C — prebuilt reverse-adjacency fast path
+//
+// analyze.js builds the reverse adjacency + direct-IDs set once and threads
+// them into computeBlastRadius on every call to avoid O(N*E) rebuilds.
+// These tests assert the fast path produces identical results to the
+// standard path, and that the public __internal helper is exported.
+// ---------------------------------------------------------------------------
+describe("graph.computeBlastRadius — prebuilt args fast path", () => {
+  test("result with prebuilt args matches result without", () => {
+    const g = mkGraph({
+      nodes: [
+        { id: "app@1.0.0",       name: "app",       depth: -1 },
+        { id: "express@4.0.0",   name: "express",   depth: 0,  isDirect: true  },
+        { id: "body-parser@1.0", name: "body-parser", depth: 1, isDirect: false },
+        { id: "qs@6.0.0",        name: "qs",        depth: 2,  isDirect: false },
+        { id: "lodash@4.17.21",  name: "lodash",    depth: 1,  isDirect: false },
+      ],
+      edges: [
+        { from: "app@1.0.0",       to: "express@4.0.0"   },
+        { from: "express@4.0.0",   to: "body-parser@1.0" },
+        { from: "body-parser@1.0", to: "qs@6.0.0"        },
+        { from: "express@4.0.0",   to: "lodash@4.17.21"  },
+      ],
+    });
+
+    const reverseAdj = __internal.buildReverseAdjacency(g);
+    const directIds = new Set(g.nodes.filter((n) => n.isDirect).map((n) => n.id));
+
+    const baseline = computeBlastRadius(g, "qs@6.0.0");
+    const fast     = computeBlastRadius(g, "qs@6.0.0", reverseAdj, directIds);
+
+    assert.deepEqual(fast, baseline);
+    // Sanity: baseline should still report express (a direct dep) on the critical path.
+    assert.equal(baseline.criticalPathFlag, true);
+    // app -> express -> body-parser -> qs, so 3 dependents transitively depend on qs.
+    assert.equal(baseline.dependentCount, 3);
+  });
+
+  test("fast path still returns empty shape for missing pkgId", () => {
+    const g = mkGraph({
+      nodes: [{ id: "express@4.0.0", name: "express", depth: 0, isDirect: true }],
+      edges: [],
+    });
+    const reverseAdj = __internal.buildReverseAdjacency(g);
+    const directIds = new Set();
+    const r = computeBlastRadius(g, "missing@1.0.0", reverseAdj, directIds);
+    assert.deepEqual(r, { dependents: [], dependentCount: 0, criticalPathFlag: false });
+  });
+
+  test("buildReverseAdjacency is exported via __internal", () => {
+    assert.equal(typeof __internal.buildReverseAdjacency, "function");
   });
 });

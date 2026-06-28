@@ -15,7 +15,7 @@ const DEFAULT_RATIONALE = "Unable to assess automatically.";
 // up to MAX_CONCURRENT_LOOKUPS promises run at a time, results accumulate.
 // ---------------------------------------------------------------------------
 
-async function mapWithConcurrency(items, limit, fn) {
+async function mapWithConcurrencyLocal(items, limit, fn) {
   const results = new Array(items.length);
   let cursor = 0;
 
@@ -188,7 +188,7 @@ export async function analyzeThreats(graph) {
 
   console.log(`[threatAnalyst] analyzing ${graph.nodes.length} packages (concurrency=${MAX_CONCURRENT_LOOKUPS})`);
 
-  const perPackage = await mapWithConcurrency(graph.nodes, MAX_CONCURRENT_LOOKUPS, analyzePackage);
+  const perPackage = await mapWithConcurrencyLocal(graph.nodes, MAX_CONCURRENT_LOOKUPS, analyzePackage);
 
   // Flatten and drop empty results (packages with no CVEs found).
   const findings = perPackage.flat().filter((f) => f && f.cveId);
@@ -207,3 +207,10 @@ export async function analyzeThreats(graph) {
  * exercise the fallback paths without spinning up a real Gemini client.
  */
 export const _parseExploitabilityJson = parseExploitabilityJson;
+
+/**
+ * Worker-pool concurrency-capped map. Exported so other modules (e.g. the
+ * /analyze orchestration route for batched Gemini narrative calls) can reuse
+ * the same pattern instead of re-implementing it.
+ */
+export const mapWithConcurrency = mapWithConcurrencyLocal;
